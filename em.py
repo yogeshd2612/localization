@@ -44,37 +44,33 @@ d0=0.5
 #
 
 #EM details
-MAX_ITER=2
+MAX_ITER=5
 #
 
 def init():
 	#initializing X with uniform distribution
 	for i in range(J):
-		X.append(1.0/J)
+		X[i]=(1.0/J)
 	#initializing PL with uniform distribution
 	for i in range(K):
-		PL.append(1.0/K)
+		PL[i]=(1.0/K)
 	#initializing sigma with constant 6dBm 
 	for i in range(N):
-		sigma.append([])
 		for j in range(J):
-			sigma[i].append([])
 			for k in range(K):
-				sigma[i][j].append(6)
+				sigma[i][j][k]=6
 	#initializing path loss exponent for each sniffer to 3 (experimental value for indoor environment)
 	for i in range(N):
-		PL_EXP.append(3)
+		PL_EXP[i]=3
 	#initializing mu according to LDPL model
 	for i in range(N):
-		mu.append([])
 		for j in range(J):
-			mu[i].append([])
 			for k in range(K):
 				d=math.sqrt(((j%cols)*0.5-sniffer_loc[i][0])**2+((j/cols)*0.5-sniffer_loc[i][1])**2)
 				if d<d0:
-					mu[i][j].append(powerLevelMin)
+					mu[i][j][k]=(powerLevelMin)
 				else:
-					mu[i][j].append(powerLevelMin+0.5*k-10*PL_EXP[i]*math.log10(d/d0))
+					mu[i][j][k]=(powerLevelMin+0.5*k-10*PL_EXP[i]*math.log10(d/d0))
 
 def Gaussian(mu, sigma, x):
 	# calculates the probability of x for 1-dim Gaussian with mean mu and var. sigma
@@ -174,26 +170,49 @@ def printVariables():
 		print
 	print'''
 
+def salloc():
+	for i in range(J):
+		X.append(0)
+	for i in range(K):
+		PL.append(0)
+	for i in range(N):
+		PL_EXP.append(0)
+	for i in range(N):
+		sigma.append([])
+		mu.append([])
+		for j in range(J):
+			sigma[i].append([])	
+			mu[i].append([])
+			for k in range(K):
+				sigma[i][j].append(0)
+				mu[i][j].append(0)
 
 def main():
 	
 	
 	#initializing model parameters
+	salloc()
 	init()
 	#Reading measurement data
 	f=open("data","r")
 	measurements=pickle.load(f)
-	y=random.randint(0,rows-1)
-	x=random.randint(0,cols-1)
-	globals()['S']=measurements[y][x]
-	print "Actual Measurements : ",S
-	print "Actual Position : ",y,",",x
-	print "Estimates :"
-	#printVariables()
-	for it in range(MAX_ITER):
-		print update_step(e_step())
-		printVariables()
-		
+	
+	error=0.0
+	ntest=rows*cols
+	for i in range(ntest):
+		y=random.randint(0,rows-1)
+		x=random.randint(0,cols-1)
+		globals()['S']=measurements[y][x]
+		print "Actual Measurements : ",S
+		print "Actual Position : ",y,",",x
+		init()
+		for it in range(MAX_ITER):
+			res=update_step(e_step())
+		print "Estimates :",res
+		error+=math.sqrt((y*0.5-res[0]*0.5)**2+(x*0.5-res[1]*0.5)**2)
+		#printVariables()
+	error/=ntest
+	print error	
 
 
 	#print measurements
