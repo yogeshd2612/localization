@@ -1,4 +1,4 @@
-# Expectation maximization for Localization (Model is based on WiGEM paper)
+# Expectation maximization for Localization 
 import math
 import time
 import random
