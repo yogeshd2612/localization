@@ -6,8 +6,8 @@ import pickle
 
 
 #Grid [11*7]
-rows=11
-cols=7
+x_max=10
+y_max=10
 
 '''
 Latent Variables:
@@ -16,7 +16,7 @@ Latent Variables:
 
 
 '''
-J=77 #dimension of position vector
+J=x_max*y_max #dimension of position vector
 K=20 #dimension of power levels
 N=4 #number of sniffers 
 powerLevelMin=20 #dBm
@@ -35,8 +35,8 @@ sigma=[[[0 for k in range(K)] for j in range(J)] for i in range(N)]
 PL_EXP=[0 for i in range(N)]
  
 # initalization const
-sniffer_loc=[(0,0),(0,3),(5,0),(5,3)]
-d0=0.5
+sniffer_loc=[(0,0),(0,y_max),(x_max,0),(x_max,y_max)]
+d0=1
 #
 
 #EM details
@@ -65,7 +65,7 @@ def init():
 	for i in range(N):
 		for j in range(J):
 			for k in range(K):
-				d=math.sqrt(((j%cols)*0.5-sniffer_loc[i][1])**2+((j/cols)*0.5-sniffer_loc[i][0])**2)
+				d=math.sqrt(((j%x_max)-sniffer_loc[i][0])**2+((j/x_max)-sniffer_loc[i][1])**2)
 				if (d<d0):
 					mu[i][j][k]=powerLevelMin
 				else:
@@ -135,9 +135,9 @@ def update_step(theta):
 def printVariables(var_name):
 	if('posD' in var_name):
 		print "Position Distribution :"
-		for i in range(rows):
-			for j in range(cols):
-				print X[i*cols+j],
+		for i in range(y_max):
+			for j in range(x_max):
+				print X[i*x_max+j],
 			print
 	elif("powerD" in var_name):
 		print "Power Distribution :"
@@ -174,7 +174,7 @@ def printVariables(var_name):
 def generate_data(transmit_power,path_loss_exp,fading_var,loc):
 	for i in range(M):
 		for s in range(len(sniffer_loc)):
-			d=math.sqrt((loc[1]*0.5-sniffer_loc[s][1])**2+(loc[0]*0.5-sniffer_loc[s][0])**2)
+			d=math.sqrt((loc[0]-sniffer_loc[s][0])**2+(loc[1]-sniffer_loc[s][1])**2)
 			if(d<d0):
 				measurements[i][s]=transmit_power
 			else:
@@ -189,39 +189,39 @@ def main():
 	for samples in range(NS):
 		#initializing model parameters
 		init()
-		d_pos_r=random.randrange(rows)
-		d_pos_c=random.randrange(cols)
-		generate_data(22,4,6,(d_pos_r,d_pos_c))
-		#printVariables(["mus"])
-		pos_r=0
-		pos_c=0
+		d_pos_x=random.randrange(x_max)
+		d_pos_y=random.randrange(y_max)
+		generate_data(22,4,6,(d_pos_x,d_pos_y))
+		#printVariables(["data"])
+		pos_x=0
+		pos_y=0
 		delta=1e-3
 		it=0
-		while(1):
+		while(it<20):
 			update_step(e_step())
-			expected_pos_c=0.0
-			expected_pos_r=0.0
+			expected_pos_x=0.0
+			expected_pos_y=0.0
 			mep=0.0
 			for i in range(J):
-				expected_pos_r+=(i/cols)*X[i]
-				expected_pos_c+=(i%cols)*X[i]
+				expected_pos_y+=(i/x_max)*X[i]
+				expected_pos_x+=(i%x_max)*X[i]
 				if(X[i]>mep):
 					mep=X[i]
 					mi=i
 			#print expected_pos_r,expected_pos_c,it
-			if((pos_r-expected_pos_r)**2+(pos_c-expected_pos_c)**2<delta ):
+			if((pos_x-expected_pos_x)**2+(pos_y-expected_pos_y)**2<delta ):
 				break
 			it+=1
-			pos_r=expected_pos_r
-			pos_c=expected_pos_c
-		print "Data Pos : ",d_pos_r,d_pos_c	
-		print "Expected Pos:",expected_pos_r,expected_pos_c
-		print "Expected round off pos :",round(expected_pos_r),round(expected_pos_c)
-		print "Most Prob Pos: ",mi/cols,mi%cols
+			pos_x=expected_pos_x
+			pos_y=expected_pos_y
+		print "Data Pos : ",d_pos_x,d_pos_y
+		print "Expected Pos:",expected_pos_x,expected_pos_y
+		print "Expected round off pos :",round(expected_pos_x),round(expected_pos_y)
+		print "Most Prob Pos: ",mi%x_max,mi/x_max
 		print 
-		error_exp+=math.sqrt((d_pos_c-expected_pos_c)**2+(d_pos_r-expected_pos_r)**2)
-		error_round+=math.sqrt((d_pos_c-round(expected_pos_c))**2+(d_pos_r-round(expected_pos_r))**2)
-		error_mprob+=math.sqrt((d_pos_c-(mi%cols))**2+(d_pos_r-mi/cols)**2)
+		error_exp+=math.sqrt((d_pos_x-expected_pos_x)**2+(d_pos_y-expected_pos_y)**2)
+		error_round+=math.sqrt((d_pos_x-round(expected_pos_x))**2+(d_pos_x-round(expected_pos_x))**2)
+		error_mprob+=math.sqrt((d_pos_x-(mi%x_max))**2+(d_pos_x-mi/x_max)**2)
 	print "MDE for Expected Pos: ",error_exp/NS
 	print "MDE for Round off Pos: ",error_round/NS
 	print "MDE for most prob Pos: ",error_mprob/NS
