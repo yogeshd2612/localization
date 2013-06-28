@@ -12,7 +12,7 @@ sniffer_loc=[(0,0),(0,100),(100,0),(100,100)]
 
 
 K=20
-V_max=10
+V_max=5
 PL_EXP_max=5
 P_range=10
 P_min=20
@@ -46,9 +46,16 @@ class mobile_tx:
 		return Z
 
 	def move(self):
-		self.x=(self.x+self.v_x)%world_size[0]
-		self.y=(self.y+self.v_y)%world_size[1]
-
+		t_m=mobile_tx()
+		t_m.x=(self.x+self.v_x)%world_size[0]
+		t_m.y=(self.y+self.v_y)%world_size[1]
+		t_m.v_x=self.v_x
+		t_m.v_y=self.v_y
+		t_m.p=self.p
+		t_m.pl_exp=self.pl_exp
+		t_m.var=self.var
+		return t_m
+		
 	def Gaussian(self,mu,sigma,x):
 		# calculates the probability of x for 1-dim Gaussian with mean mu and var. sigma 
 		return exp(- ((mu - x) ** 2) / (sigma ** 2) / 2.0) / sqrt(2.0 * pi * (sigma ** 2))
@@ -57,7 +64,8 @@ class mobile_tx:
 		prob=1.0
 		X=self.sense()
 		for i in range(len(sniffer_loc)):
-			prob*=self.Gaussian(X[i],self.var[i],measurements[i])
+			#prob*=self.Gaussian(X[i],self.var[i],measurements[i])
+			prob*=self.Gaussian(X[i],5,measurements[i])
 		return prob
 
 	def __repr__(self):
@@ -65,9 +73,9 @@ class mobile_tx:
 
 
 # Number of Particles
-N=1000
+N=10000
 # time units
-T=40
+T=20
 pos_data=[0 for i in range(T)]
 measurement_data=[0 for i in range(T)]
 def generate_data(p,pl_exp,v_x,v_y,x,y,var):
@@ -96,33 +104,58 @@ def main():
 	#print measurement_data
 	#print pos_data
 	p=[mobile_tx() for i in range(N)]
-
+	f=open("data.txt","w")
+	f.write(str(T)+" "+str(N)+' 0 0 0 \n')
 	for t in range(T):
 		print "error : ", error(pos_data[t],p)
-		for i in range(5):
-			print p[i]
+		'''print "Initial"
+		for i in range(N):
+			print p[i].x,p[i].y,p[i].v_x,p[i].v_y
+		print''' 
+		#writing data to file
+		f.write(str(pos_data[t][0])+ " "+ str(pos_data[t][1])+" 0 0 0 \n")
+		for i in range(N):
+			f.write(str(p[i].x)+" "+str(p[i].y)+" "+str(p[i].p)+" "+str(p[i].v_x)+" "+str(p[i].v_y)+ '\n')
+		
 		# measurement step
 		w=[0 for i in range(N)]
 		for j in range(N):
 			w[j]=p[j].measurement_prob(measurement_data[t])
+		normalizer=sum(w)
+		for i in range(N): w[i]/normalizer
+
 		#print sorted(w)
 		# resampling
 		index = int(random.random()*N)
 		beta =0.0
 		mw=max(w)
+		#print "max weight : ",mw
 		p1=[]
+		weight_avg=0.0
 		for i in range(N):
 			beta+=random.random()*2.0*mw
 			while beta> w[index]:
 				beta -= w[index]
 				index=(index+1)%N
+			weight_avg+=w[index]
 			p1.append(p[index])
-		# move step
+		'''print "after selection"
 		for i in range(N):
-			p1[i].move()
-		
-		p=p1
-		
+			print p1[i].x,p1[i].y,p1[i].v_x,p1[i].v_y
+		print''' 
+		print "avg_weight of selection  : ",weight_avg/N
+		# move step
+		p2=[]
+		for i in range(N):
+			p2.append(p1[i].move())
+
+		'''print "after move"	
+		for i in range(N):
+			print p2[i].x,p2[i].y,p2[i].v_x,p2[i].v_y
+		print'''
+
+		p=p2
+	f.close()		
 
 if __name__=="__main__":
 	main()
